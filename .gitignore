@@ -1,6 +1,9 @@
 # Logs
 *.log
 *.db
+*.db-shm
+*.db-wal
+*.db.corrupt.bak
 
 # Node)
 node_modules/
