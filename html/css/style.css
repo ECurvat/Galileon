@@ -1,0 +1,225 @@
+body {
+  margin: 0;
+  padding: 0;
+  background-color: rgb(54, 54, 54);
+  font-family: "Roboto", sans-serif;
+  font-weight: 400;
+}
+
+.main {
+  height: 90vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  flex-direction: column;
+  gap: 5px;
+}
+
+table {
+  border-spacing: 0;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+td {
+  border: 0px black solid;
+  position: relative; /* Nécessaire pour que le cercle puisse se positionner dans td */
+  font-size: 10px;
+}
+
+.abrev {
+  line-height: 28px;
+  color: rgb(255, 255, 255);
+  font-family: Arial;
+}
+
+.abrev>td {
+  margin: 0;
+  padding: 0;
+}
+
+.voie {
+  line-height: 4px;
+  color: black;
+}
+
+.spacer1 {
+  height: 15px;
+}
+
+.spacer2 {
+  height: 15px;
+}
+
+.voie > td {
+  background-color: rgba(255, 217, 0, 1);
+}
+
+/* Dégradés début/fin de ligne */
+.voie > td:first-child {
+  background: linear-gradient(
+    90deg,
+    rgba(54, 54, 54, 1) 50%,
+    rgba(255, 217, 0, 1) 50%,
+    rgba(255, 217, 0, 1) 100%
+  );
+}
+
+.voie > td:last-child {
+  background: linear-gradient(
+    270deg,
+    rgba(54, 54, 54, 1) 50%,
+    rgba(255, 217, 0, 1) 50%,
+    rgba(255, 217, 0, 1) 100%
+  );
+}
+
+/* Cercles centrés dans chaque cellule de tr.voie */
+.voie > td::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  background-color: rgba(255, 217, 0, 1);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
+.menu {
+  bottom: 0;
+  width: 100vw;
+  height: 10vh;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-around;
+}
+
+.menu button {
+  border-radius: 100%;
+  font-size: 20px;
+  background-color: white;
+  border: none;
+  padding: 20px;
+  font-family: "Roboto", sans-serif;
+  font-weight: 900;
+  color: black;
+}
+
+p {
+  color: white;
+}
+
+.emplacement1 {
+  height: 50px;
+}
+
+.emplacement2 {
+  height: 50px;
+}
+
+.train-container {
+  position: relative;
+  width: 100%;
+  height: 40px; /* hauteur des pastilles */
+}
+
+.train-dot {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 12px;
+  border-radius: 10px;
+  padding: 2px 6px;
+  background-color: white;
+  color: rgb(0, 0, 0);
+  margin-bottom: 5px;
+}
+
+.ita {
+  font-style: italic;
+}
+
+ul {
+  list-style-type: none;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-evenly;
+  width: 30vw;
+}
+
+li {
+  color: white;
+}
+
+span {
+  color: white;
+}
+
+.erreur {
+  width: 50vw;
+  padding: 5px 0px;
+  border: 1px solid rgb(255 41 41);
+  border-radius: 5px;
+  color: white;
+  font-size: 12px;
+}
+
+@media (max-width: 768px) {
+ td {
+  font-size: 6px;
+ }
+
+ .train-dot {
+  font-size: 6px;
+  padding: 1px 4px;
+ }
+
+ .voie > td::before {
+  width: 5px;
+  height: 5px;
+ }
+
+ .voie {
+  line-height: 1px;
+ }
+
+ .abrev {
+  line-height: 0px;
+ }
+
+ .emplacement1 {
+  height: 20px;
+ }
+
+ .emplacement2 {
+  height: 20px;
+ }
+
+  .train-dot td {
+    padding: 0;
+    line-height: 1;
+    vertical-align: middle;
+  }
+
+  ul {
+    width: 80vw;
+    font-size: 8px;
+  }
+
+  span:has(+ ul) {
+    font-size: 8px;
+  }
+
+  .menu button {
+    font-size: 12px;
+    padding: 12px;
+    font-weight: 700px;
+  }
+}

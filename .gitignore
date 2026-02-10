@@ -1,0 +1,15 @@
+# Logs
+*.log
+*.db
+
+# Node)
+node_modules/
+
+# Env & secrets
+.env
+
+# OS / outils
+.DS_Store
+.idea/
+.vscode/
+scraper/
