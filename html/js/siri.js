@@ -560,6 +560,7 @@ function updateVehicules(listeVehicules) {
 
 let refreshDisabled = false;
 let refreshTimeout = null;
+let refreshCountdownInterval = null;
 
 /*
 	- Initialise la carte et effectue la première récupération des données et mise en place de la carte
@@ -629,10 +630,21 @@ function disableRefreshButton(button) {
 	=> Ne renvoie rien
 */
 function enableRefreshButton(button) {
+	if (refreshTimeout) {
+		clearTimeout(refreshTimeout);
+		refreshTimeout = null;
+	}
+	if (refreshCountdownInterval) {
+		clearInterval(refreshCountdownInterval);
+		refreshCountdownInterval = null;
+	}
+
 	refreshDisabled = false;
 	button.classList.remove('refresh-disabled');
 	button.style.pointerEvents = 'auto';
 	button.style.opacity = '1';
+	button.title = 'Rafraîchir les données';
+	button.innerHTML = refreshSVG;
 }
 
 /*
@@ -642,6 +654,22 @@ function enableRefreshButton(button) {
 */
 function startRefreshCooldown(button, delay) {
 	if (refreshTimeout) clearTimeout(refreshTimeout);
+	if (refreshCountdownInterval) clearInterval(refreshCountdownInterval);
+
+	const cooldownEndAt = Date.now() + delay;
+
+	const updateCooldownLabel = () => {
+		const remainingMs = cooldownEndAt - Date.now();
+		const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+		button.textContent = `${remainingSeconds}`;
+		button.title = `Disponible dans ${remainingSeconds}s`;
+	};
+
+	updateCooldownLabel();
+
+	refreshCountdownInterval = setInterval(() => {
+		updateCooldownLabel();
+	}, 200);
 
 	refreshTimeout = setTimeout(() => {
 		enableRefreshButton(button);
