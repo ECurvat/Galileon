@@ -583,7 +583,6 @@ async function init() {
 		disableRefreshButton(button);
 		startRefreshCooldown(button, 30000); // 30s
 	}, 0);
-	addNote("Erreur Grand Lyon : lignes de Saint-Priest temporairement absentes (marche à blanc T6N)", "error", 30000);
 }
 
 /*
