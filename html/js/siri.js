@@ -102,7 +102,6 @@ function traiterSiri(listeVehicules) {
 	if (listeVehicules) {
 		listeVehicules.forEach(v => {
 			// let ligne = v.LineRef.value.split(":")[3]; Ne plus utiliser car ligne commerciale et non définitive (sorties/rentrées de dépôt)
-			console.log(v);
 			let ligne = v.FramedVehicleJourneyRef.DatedVehicleJourneyRef.split(":")[3].slice(4).substring(0,2);
 			let carrosserie = v.VehicleRef.value.split(":")[3];
 			let voiture = parseInt(v.FramedVehicleJourneyRef.DatedVehicleJourneyRef.split(":")[3].slice(-8).substring(0,3));
@@ -494,6 +493,14 @@ function initMap() {
 
 	const map = L.map('map').setView([45.75, 4.93], 12);
 
+	// Pane pour l'arrière plan
+	map.createPane('paneTraces');
+	map.getPane('paneTraces').style.zIndex = 400;
+
+	// Pane pour le premier plan
+	map.createPane('paneArrets');
+	map.getPane('paneArrets').style.zIndex = 500;
+
 	L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
 		attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM contributors</a>'
 	}).addTo(map);
@@ -510,12 +517,33 @@ function initMap() {
 		}
 
 		L.geoJSON(feature, {
-			style: {
-				color: lineColor(ligne),
-				weight: 2,
-				opacity: 0.9
-			}
-		}).addTo(layersParLigne[ligne].trace);
+		pane: 'paneTraces',
+		style: {
+			color: lineColor(ligne),
+			weight: 2,
+			opacity: 0.9
+		}
+	}).addTo(layersParLigne[ligne].trace);
+	});
+
+	arrets.forEach(arret => {
+		const popupContent = `
+			${arret.nom}<br>
+			${arret.desserte.map(d => 
+				`${d.ligne} | ${d.sens}`
+			).join("<br>")}
+		`;
+		L.circleMarker([arret.lat, arret.lon], {
+			pane: 'paneArrets',
+			radius: 3,
+			fillColor: "#ffffff",
+			color: "#000000",
+			weight: 1,
+			opacity: 1,
+			fillOpacity: 1
+		})
+		.bindPopup(popupContent)
+		.addTo(map);
 	});
 
 	L.control.locate({
@@ -677,10 +705,10 @@ function startRefreshCooldown(button, delay) {
 }
 
 /*
-	- Récupère les arrêts du réseau TCL
+	- Récupère les arrêts de tram du réseau TCL
 	Fichier en dur dans le serveur à mettre à jour régulièrement
 	Dépend de parseDesserte
-	=> Renvoie une liste d'objets 
+	=> Renvoie une liste d'objets
 */
 async function chargerArrets() {
 	try {
@@ -693,7 +721,8 @@ async function chargerArrets() {
 		const json = await response.json();
 
 		// Extraction des données utiles
-		const arrets = json.values.map(item => ({
+		const arrets = json.values
+		.map(item => ({
 			id: item.id,
 			nom: item.nom,
 			desserte: parseDesserte(item.desserte),
@@ -702,7 +731,12 @@ async function chargerArrets() {
 			adresse: item.adresse,
 			commune: item.commune,
 			insee: item.insee
-		}));
+		}))
+		.filter(arret =>
+			arret.desserte.some(d =>
+			lignesFiltrees.includes(d.ligne)
+			)
+		);
 
 		return arrets;
 	} catch (err) {
