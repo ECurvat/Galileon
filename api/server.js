@@ -11,6 +11,7 @@ const PORT = 3000;
 
 const API_URL_PASSAGES = process.env.API_URL_PASSAGES;
 const SIRI_URL_VEHICLE_MONITORING = process.env.SIRI_URL_VEHICLE_MONITORING;
+const SIRI_URL_ESTIMATED_TIMETABLES = process.env.SIRI_URL_ESTIMATED_TIMETABLES;
 const LOGIN = process.env.API_LOGIN;
 const PASSWORD = process.env.API_PASSWORD;
 
@@ -67,7 +68,7 @@ app.get("/siri/vehicle-monitoring", async (req, res) => {
 		if (!response.ok) {
 			return res.status(response.status).json({
 				success: false,
-				message: "API SIRI Grand Lyon indisponible",
+				message: "API SIRI Grand Lyon indisponible (VM)",
 				data: []
 			});
 		}
@@ -79,6 +80,44 @@ app.get("/siri/vehicle-monitoring", async (req, res) => {
 			res.json({
 				success: false,
 				message: "Aucun véhicule retourné par l'API SIRI",
+				data: []
+			});
+		} else {
+			res.json({
+				success: true,
+				data: data
+			});
+		}
+	} catch (err) {
+		console.error(err);
+		res.status(500).send("Erreur serveur interne");
+	}
+});
+
+app.get("/siri/estimated-timetables", async (req, res) => {
+	try {
+		const base64Credentials = Buffer.from(`${LOGIN}:${PASSWORD}`).toString("base64");
+
+		const response = await fetch(SIRI_URL_ESTIMATED_TIMETABLES, {
+			headers: {
+				"Authorization": `Basic ${base64Credentials}`
+			}
+		});
+
+		if (!response.ok) {
+			return res.status(response.status).json({
+				success: false,
+				message: "API SIRI Grand Lyon indisponible (ET)",
+				data: []
+			});
+		}
+
+		const data = await response.json();
+
+		if (!data) {
+			res.json({
+				success: false,
+				message: "Aucun horaire retourné par l'API SIRI",
 				data: []
 			});
 		} else {

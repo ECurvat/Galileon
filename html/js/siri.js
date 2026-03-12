@@ -47,18 +47,16 @@ async function fetchSiri() {
 	try {
 		const response = await fetch("/siri/vehicle-monitoring");
 
-		// Si l'API renvoie une erreur (ex : 500)
 		if (!response.ok) {
 			console.error(`Erreur API SIRI: ${response.status} ${response.statusText}`);
-			addNote("Erreur Grand Lyon : API SIRI indisponible", "error", 0);
+			addNote("Erreur Grand Lyon : API SIRI (VM) indisponible", "error", 0);
 			return [];
 		}
 
 		const data = await response.json();
 
-		// Si ton propre backend renvoie déjà success: false
 		if (!data.success) {
-			addNote(data.message || "Erreur API Grand Lyon : API SIRI indisponible", "error", 0);
+			addNote(data.message || "Erreur API Grand Lyon : API SIRI (VM) indisponible", "error", 0);
 			return [];
 		}
 
@@ -76,7 +74,7 @@ async function fetchSiri() {
 
 		if (filtreVehicules.length === 0) {
 			console.warn("Aucun véhicule correspondant au filtre retourné par SIRI");
-			addNote("Erreur API Grand Lyon : pas de véhicule trouvé", "error", 0);
+			addNote("Erreur API Grand Lyon : pas de véhicule trouvé pour le filtre", "error", 0);
 			return [];
 		}
 
@@ -84,9 +82,52 @@ async function fetchSiri() {
 		return filtreVehicules;
 
 	} catch (error) {
-		// Cas d'erreur réseau ou autre exception JS
 		console.error("Erreur lors de la récupération SIRI :", error);
 		addNote("Erreur API Grand Lyon : problème avec l'API SIRI", "error", 0);
+		return [];
+	}
+}
+
+/* 
+	- Récupérer les données horaires depuis le back-end
+	Utilisé dans l'initialisation
+	=> Renvoie une liste de véhicules avec ses horaires de passage aux prochains arrêts (jusqu'au prochain terminus)
+*/
+async function fetchSiriET() {
+	try {
+		const response = await fetch("/siri/estimated-timetables");
+
+		if (!response.ok) {
+			console.error(`Erreur API SIRI: ${response.status} ${response.statusText}`);
+			addNote("Erreur Grand Lyon : API SIRI (ET) indisponible", "error", 0);
+			return [];
+		}
+
+		const data = await response.json();
+
+		if (!data.success) {
+			addNote(data.message || "Erreur API Grand Lyon : API SIRI (ET) indisponible", "error", 0);
+			return [];
+		}
+
+		let listeHoraires = data.data.Siri.ServiceDelivery.EstimatedTimetableDelivery[0].EstimatedJourneyVersionFrame[0].EstimatedVehicleJourney;
+		let filtreHoraires = listeHoraires
+			.filter(v => lignesFiltrees.includes(v.LineRef.value.split(":")[3]));
+
+		if (filtreHoraires.length === 0) {
+			console.warn("Aucun horaire correspondant au filtre retourné par SIRI");
+			addNote("Erreur API Grand Lyon : pas d'horaire trouvé pour le filtre", "error", 0);
+			return [];
+		}
+		
+		console.log(filtreHoraires);
+
+		// Tout est bon
+		return [];
+
+	} catch (error) {
+		console.error("Erreur lors de la récupération SIRI (ET) :", error);
+		addNote("Erreur API Grand Lyon : problème avec l'API SIRI (ET)", "error", 0);
 		return [];
 	}
 }
@@ -597,6 +638,7 @@ let refreshCountdownInterval = null;
 	$ Pourrait renvoyer la carte ?
 */
 async function init() {
+	const listeHoraires = await fetchSiriET();
 	const listeVehicules = await fetchSiri();
 	arrets = await chargerArrets();
 	traces = await fetchTraces();
