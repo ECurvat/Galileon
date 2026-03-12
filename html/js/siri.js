@@ -119,11 +119,9 @@ async function fetchSiriET() {
 			addNote("Erreur API Grand Lyon : pas d'horaire trouvé pour le filtre", "error", 0);
 			return [];
 		}
-		
-		console.log(filtreHoraires);
 
 		// Tout est bon
-		return [];
+		return filtreHoraires;
 
 	} catch (error) {
 		console.error("Erreur lors de la récupération SIRI (ET) :", error);
@@ -138,11 +136,30 @@ async function fetchSiriET() {
 	Dépend de parseTiming
 	=> Renvoie une liste d'objets (véhicules) avec les infos intéressantes
 */
-function traiterSiri(listeVehicules) {
+function traiterSiri(listeVehicules, listeHoraires) {
 	let objetsVehicules = [];
+	console.log(listeHoraires);
 	if (listeVehicules) {
 		listeVehicules.forEach(v => {
-			// let ligne = v.LineRef.value.split(":")[3]; Ne plus utiliser car ligne commerciale et non définitive (sorties/rentrées de dépôt)
+			let horaire = listeHoraires.find(h => h.FramedVehicleJourneyRef.DatedVehicleJourneyRef == v.FramedVehicleJourneyRef.DatedVehicleJourneyRef);
+			let passages = [];
+			if (horaire) {
+				horaire.EstimatedCalls.EstimatedCall.forEach(h => {
+					let ordre = h.Order;
+					let arret = arrets.find(a => a.id == h.StopPointRef.value.split(":")[3]);
+					let heure;
+					if (h.ExpectedArrivalTime) {
+						heure = h.ExpectedArrivalTime;
+					} else {
+						heure = h.AimedArrivalTime;
+					}
+					passages.push({
+						ordre: ordre,
+						arret: arret,
+						heure: heure
+					})
+				})
+			}
 			let ligne = v.FramedVehicleJourneyRef.DatedVehicleJourneyRef.split(":")[3].slice(4).substring(0,2);
 			let carrosserie = v.VehicleRef.value.split(":")[3];
 			let voiture = parseInt(v.FramedVehicleJourneyRef.DatedVehicleJourneyRef.split(":")[3].slice(-8).substring(0,3));
@@ -167,6 +184,7 @@ function traiterSiri(listeVehicules) {
 				terminus: terminus,
 				sens: sens,
 				timing: timing,
+				passages: passages,
 				position: {
 					latitude: position.latitude,
 					longitude: position.longitude
@@ -361,8 +379,29 @@ function createVehiculeMarker(v, map) {
 		: `${signe}${sec}s`;
 	}
 
+	const passagesHTML = v.passages
+	.sort((a, b) => a.ordre - b.ordre)
+	.map(p => {
+		if (p.heure) {
+			const datePassage = new Date(p.heure);
+
+			const heure = datePassage.toLocaleTimeString("fr-FR", {
+				hour: "2-digit",
+				minute: "2-digit",
+				second: "2-digit"
+			});
+
+			return `${p.arret.nom} : ${heure}`;
+		} else return `${p.arret.nom} : Inconnue`;
+	})
+	.join("<br>");
+
 	const marker = L.marker([v.position.latitude, v.position.longitude], { icon })
-		.bindPopup(`${terminus} ${(timingBeau ?? "")}`);
+	.bindPopup(`
+		<b>→ ${terminus}</b> ${(timingBeau ?? "")}
+		<br>
+		${passagesHTML}
+	`);
 
 	marker.options.voitureData = { voiture: v.voiture, carrosserie: v.carrosserie, timing: timingBeau ?? "" };
 
@@ -643,7 +682,7 @@ async function init() {
 	arrets = await chargerArrets();
 	traces = await fetchTraces();
 
-	let objetsVehicules = traiterSiri(listeVehicules);
+	let objetsVehicules = traiterSiri(listeVehicules, listeHoraires);
 	sendDb(listeVehicules);
 	const map = initMap();
 	refreshData(objetsVehicules);
@@ -673,8 +712,9 @@ function refreshData(listeVehicules) {
 */
 async function reloadVehicules() {
 	try {
+		const listeHoraires = await fetchSiriET();
 		const listeVehicules = await fetchSiri();
-		const objetsVehicules = traiterSiri(listeVehicules);
+		const objetsVehicules = traiterSiri(listeVehicules, listeHoraires);
 
 		refreshData(objetsVehicules);
 	} catch (err) {
