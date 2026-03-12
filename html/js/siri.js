@@ -1,4 +1,12 @@
 const lignesFiltrees = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "RX"];
+const arretsReleve = [/* T1 */ 46160,
+					/* T2 */ 33222, 32582, 32583,
+					/* T3 */ 35676,
+					/* T4 */ 45883,	45884,
+					/* T5 */ 45271,
+					/* T6 */ 47313,	47314,
+					/* T7 */ 47685
+];
 const visite = {
 	referrer: document.referrer || null,
 
@@ -382,17 +390,18 @@ function createVehiculeMarker(v, map) {
 	const passagesHTML = v.passages
 	.sort((a, b) => a.ordre - b.ordre)
 	.map(p => {
-		if (p.heure) {
-			const datePassage = new Date(p.heure);
+		const datePassage = new Date(p.heure);
 
-			const heure = datePassage.toLocaleTimeString("fr-FR", {
-				hour: "2-digit",
-				minute: "2-digit",
-				second: "2-digit"
-			});
-
+		const heure = datePassage.toLocaleTimeString("fr-FR", {
+			hour: "2-digit",
+			minute: "2-digit",
+			second: "2-digit"
+		});
+		if (arretsReleve.includes(p.arret.id)) {
+			return `<b>${p.arret.nom} : ${heure}</b>`;
+		} else {
 			return `${p.arret.nom} : ${heure}`;
-		} else return `${p.arret.nom} : Inconnue`;
+		}
 	})
 	.join("<br>");
 
@@ -608,7 +617,7 @@ function initMap() {
 
 	arrets.forEach(arret => {
 		const popupContent = `
-			${arret.nom}<br>
+			${arret.nom} - ${arret.id}<br>
 			${arret.desserte.map(d => 
 				`${d.ligne} | ${d.sens}`
 			).join("<br>")}
