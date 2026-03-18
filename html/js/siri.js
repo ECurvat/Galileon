@@ -75,7 +75,6 @@ async function fetchSiri() {
 			console.warn("Aucun véhicule retourné par SIRI (liste vide)");
 			return [];
 		}
-
 		let filtreVehicules = listeVehicules
 			.filter(v => lignesFiltrees.includes(v.MonitoredVehicleJourney.LineRef.value.split(":")[3]))
 			.map(v => v.MonitoredVehicleJourney);
@@ -120,7 +119,7 @@ async function fetchSiriET() {
 
 		let listeHoraires = data.data.Siri.ServiceDelivery.EstimatedTimetableDelivery[0].EstimatedJourneyVersionFrame[0].EstimatedVehicleJourney;
 		let filtreHoraires = listeHoraires
-			.filter(v => lignesFiltrees.includes(v.LineRef.value.split(":")[3]));
+			.filter(h => lignesFiltrees.includes(h.LineRef.value.split(":")[3]));
 
 		if (filtreHoraires.length === 0) {
 			console.warn("Aucun horaire correspondant au filtre retourné par SIRI");
@@ -139,6 +138,46 @@ async function fetchSiriET() {
 }
 
 /* 
+	- Récupérer les incidents d'exploitation depuis le back-end
+	Utilisé dans l'initialisation
+	=> Renvoie la liste des incidents en cours côté tramway
+*/
+async function fetchSiriSE() {
+	try {
+		const response = await fetch("/siri/situation-exchange");
+
+		if (!response.ok) {
+			console.error(`Erreur API SIRI: ${response.status} ${response.statusText}`);
+			// addNote("Erreur Grand Lyon : API SIRI (SE) indisponible", "error", 0);
+			return [];
+		}
+
+		const data = await response.json();
+
+		if (!data.success) {
+			addNote(data.message || "Erreur API Grand Lyon : API SIRI (SE) indisponible", "error", 0);
+			return [];
+		}
+
+		let listeIncidents = data.data.Siri.ServiceDelivery.SituationExchangeDelivery[0].Situations.PtSituationElement;
+		let filtreIncidents = listeIncidents
+			.filter(i => lignesFiltrees.includes(i.Consequences.Consequence[0].Affects.Networks.AffectedNetwork[0].AffectedLine[0].LineRef.value.split(":")[3]));
+		console.log(filtreIncidents);
+		// if (filtreIncidents.length === 0) {
+		// 	return [];
+		// }
+
+		// Tout est bon
+		return [];
+
+	} catch (error) {
+		console.error("Erreur lors de la récupération SIRI (SE) :", error);
+		addNote("Erreur API Grand Lyon : problème avec l'API SIRI (SE)", "error", 0);
+		return [];
+	}
+}
+
+/* 
 	- Traiter les véhicules récupérés par le back-end
 	Utilisé dans l'initialisation
 	Dépend de parseTiming
@@ -146,7 +185,6 @@ async function fetchSiriET() {
 */
 function traiterSiri(listeVehicules, listeHoraires) {
 	let objetsVehicules = [];
-	console.log(listeHoraires);
 	if (listeVehicules) {
 		listeVehicules.forEach(v => {
 			let horaire = listeHoraires.find(h => h.FramedVehicleJourneyRef.DatedVehicleJourneyRef == v.FramedVehicleJourneyRef.DatedVehicleJourneyRef);
@@ -203,6 +241,60 @@ function traiterSiri(listeVehicules, listeHoraires) {
 	return objetsVehicules;
 }
 
+function traiterHoraires(listeHoraires) {
+	let horairesArrets = new Map();
+
+	listeHoraires.forEach(h => {
+		let terminus = arrets.find(a => a.id == h.DestinationRef.value.split(":")[3]);
+		let ligne = h.LineRef.value.split(":")[3];
+		let voiture = parseInt(h.FramedVehicleJourneyRef.DatedVehicleJourneyRef.split(":")[3].slice(-8).substring(0,3));
+		h.EstimatedCalls.EstimatedCall.forEach(p => {
+			let arret = arrets.find(a => a.id == p.StopPointRef.value.split(":")[3]);
+			let ordre = p.Order;
+			let heure;
+			if (h.ExpectedArrivalTime) {
+				heure = p.ExpectedArrivalTime;
+			} else {
+				heure = p.AimedArrivalTime;
+			}
+			if (horairesArrets.has(arret.id)) {
+				horairesArrets.get(arret.id).push({
+					ligne: ligne,
+					voiture: voiture,
+					terminus: terminus,
+					heure
+				})
+			} else {
+				horairesArrets.set(arret.id, [{
+					ligne: ligne,
+					voiture: voiture,
+					terminus: terminus,
+					heure
+				}])
+			}
+		})
+	})
+
+	for (const [id, passages] of horairesArrets.entries()) {
+		// supprimer doublons
+		const uniques = Array.from(
+			new Map(
+				passages.map(p => [
+					`${p.ligne}-${p.voiture}-${p.heure}`,
+					p
+				])
+			).values()
+		);
+
+		// trier par heure
+		uniques.sort((a, b) => new Date(a.heure) - new Date(b.heure));
+
+		// remettre dans la map
+		horairesArrets.set(id, uniques);
+	}
+	return horairesArrets;
+}
+
 /* ===============================================================================================
 
 											GESTION CARTE
@@ -213,6 +305,7 @@ let traces = [];
 let layersParLigne = {};
 let eyesParLigne = {};
 let marqueursParLigne = {}; // stocke tous les marqueurs par ligne et par voiture
+let markersArrets = new Map();
 let mapInstance = null;
 
 const eyeOpenSVG = `
@@ -420,6 +513,22 @@ function createVehiculeMarker(v, map) {
 }
 
 /*
+
+*/
+function buildPopupContent(arret, passages) {
+	return `
+		<strong>${arret.nom}</strong><br>
+		${passages.length === 0 ? "<i>Aucun passage</i>" : ""}
+		${passages.map(p => `
+			<div>
+				${p.ligne} V${p.voiture} → ${p.terminus.nom} :
+				${new Date(p.heure).toLocaleTimeString("fr-FR")}
+			</div>
+		`).join("")}
+	`;
+}
+
+/*
 	- Affiche ou cache le tracé et les véhicule d'une ligne
 	Déclenché par appui sur un eye svg général ou spécifique à une ligne
 	=> Ne renvoie rien
@@ -573,6 +682,22 @@ function updateLegende(map) {
 }
 
 /*
+
+*/
+function updateHoraires(horairesArrets) {
+	arrets.forEach(arret => {
+		const marker = markersArrets.get(arret.id);
+		if (!marker) return;
+
+		const passages = (horairesArrets.get(arret.id) || []);
+
+		const content = buildPopupContent(arret, passages);
+
+		marker.setPopupContent(content);
+	});
+}
+
+/*
 	- 
 	
 	=> 
@@ -616,13 +741,7 @@ function initMap() {
 	});
 
 	arrets.forEach(arret => {
-		const popupContent = `
-			${arret.nom} - ${arret.id}<br>
-			${arret.desserte.map(d => 
-				`${d.ligne} | ${d.sens}`
-			).join("<br>")}
-		`;
-		L.circleMarker([arret.lat, arret.lon], {
+		const marker = L.circleMarker([arret.lat, arret.lon], {
 			pane: 'paneArrets',
 			radius: 3,
 			fillColor: "#ffffff",
@@ -631,8 +750,10 @@ function initMap() {
 			opacity: 1,
 			fillOpacity: 1
 		})
-		.bindPopup(popupContent)
+		.bindPopup("") // vide au départ
 		.addTo(map);
+
+		markersArrets.set(arret.id, marker);
 	});
 
 	L.control.locate({
@@ -692,9 +813,10 @@ async function init() {
 	traces = await fetchTraces();
 
 	let objetsVehicules = traiterSiri(listeVehicules, listeHoraires);
+	let horairesArrets = traiterHoraires(listeHoraires);
 	sendDb(listeVehicules);
 	const map = initMap();
-	refreshData(objetsVehicules);
+	refreshData(objetsVehicules, horairesArrets);
 	setTimeout(() => {
 		const button = document.getElementById('refresh-button');
 		if (!button) return;
@@ -702,6 +824,7 @@ async function init() {
 		disableRefreshButton(button);
 		startRefreshCooldown(button, 30000); // 30s
 	}, 0);
+	const listeIncidents = await fetchSiriSE();
 }
 
 /*
@@ -709,9 +832,10 @@ async function init() {
 
 	=> Ne renvoie rien
 */
-function refreshData(listeVehicules) {
+function refreshData(listeVehicules, horairesArrets) {
 	updateVehicules(listeVehicules);
 	updateLegende(mapInstance);
+	updateHoraires(horairesArrets);
 }
 
 /*
@@ -723,9 +847,10 @@ async function reloadVehicules() {
 	try {
 		const listeHoraires = await fetchSiriET();
 		const listeVehicules = await fetchSiri();
+		const horairesArrets = traiterHoraires(listeHoraires);
 		const objetsVehicules = traiterSiri(listeVehicules, listeHoraires);
 
-		refreshData(objetsVehicules);
+		refreshData(objetsVehicules, horairesArrets);
 	} catch (err) {
 		console.error("Erreur lors du rechargement des véhicules", err);
 	}
