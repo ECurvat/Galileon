@@ -241,6 +241,11 @@ function traiterSiri(listeVehicules, listeHoraires) {
 	return objetsVehicules;
 }
 
+/*
+	- Classer les horaires de passage par arrêt
+	Appelé lors de l'initialisation et au rafraîchissement
+	=> Renvoie une Map d'id d'arrêts et des prochains passages à cet arrêt
+*/
 function traiterHoraires(listeHoraires) {
 	let horairesArrets = new Map();
 
@@ -513,7 +518,9 @@ function createVehiculeMarker(v, map) {
 }
 
 /*
-
+	- Mise en forme textuelle des popup d'arrêts
+	Appelé à chaque rafraîchissement des données
+	=> Renvoie une chaîne de caractères avec le nom de l'arrêts et les prochains passages
 */
 function buildPopupContent(arret, passages) {
 	return `
@@ -682,7 +689,9 @@ function updateLegende(map) {
 }
 
 /*
-
+	- Mettre à jour les popup d'arrêts
+	Appelé lors du rafraîchissement des données
+	=> Ne renvoie rien
 */
 function updateHoraires(horairesArrets) {
 	arrets.forEach(arret => {
@@ -698,9 +707,11 @@ function updateHoraires(horairesArrets) {
 }
 
 /*
-	- 
-	
-	=> 
+	- Initialiser la carte en arrière plan
+	Affichage des tracés de lignes
+	Affichage des arrêts
+	Ajout des boutons de localisation et rafraîchissement
+	=> Renvoie la carte créée
 */
 function initMap() {
 	if (mapInstance) return mapInstance;
@@ -768,6 +779,11 @@ function initMap() {
 	return map;
 }
 
+/*
+	- Mettre à jour les markers de véhicules
+	Supprimer les anciens markers puis les créer avec les infos à jour
+	=> Ne renvoie rien
+*/
 function updateVehicules(listeVehicules) {
 	const map = mapInstance;
 
