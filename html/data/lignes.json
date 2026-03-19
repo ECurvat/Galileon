@@ -153,7 +153,17 @@
       { "id_all": 47307, "id_ret": 47308, "ordre": 11, "nom": "Essarts - Laennec", "abrev": "ESLA", "antilope": "Essarts - Laennec", "lat": 45.735547267389386, "lon": 4.890008377591817 },
       { "id_all": 47309, "id_ret": 47310, "ordre": 12, "nom": "Desgenettes", "abrev": "DES6", "antilope": "Desgenettes", "lat": 45.739573219057455, "lon": 4.892451401731025 },
       { "id_all": 47377, "id_ret": 47378, "ordre": 13, "nom": "Vinatier", "abrev": "VIT", "antilope": "Vinatier - T6", "lat": 45.742538178283354, "lon": 4.894130411503978 },
-      { "id_all": 47314, "id_ret": 47314, "ordre": 14, "nom": "Hôpitaux Est - Pinel", "abrev": "HEPI", "antilope": "Hopitaux Est - Pinel", "lat": 45.74727936285172, "lon": 4.896724841406732 }
+      { "id_all": 47314, "id_ret": 47313, "ordre": 14, "nom": "Hôpitaux Est - Pinel", "abrev": "HEPI", "antilope": "Hopitaux Est - Pinel", "lat": 45.74727936285172, "lon": 4.896724841406732 },
+      { "id_all": 48281, "id_ret": 48282, "ordre": 15, "nom": "Kimmerling - Genêts", "abrev": "KIMM", "antilope": "", "lat": 45.752432319821, "lon": 4.898006957015 },
+      { "id_all": 48283, "id_ret": 48284, "ordre": 16, "nom": "Gare de Villeurbanne", "abrev": "GVL6", "antilope": "", "lat": 45.755214010706, "lon": 4.89118954563 },
+      { "id_all": 48288, "id_ret": 48289, "ordre": 17, "nom": "Grandclément", "abrev": "GCLE", "antilope": "", "lat": 45.759071526364, "lon": 4.888227024847 },
+      { "id_all": 48279, "id_ret": 48280, "ordre": 18, "nom": "Saint-Exupéry - Jaurès", "abrev": "STEY", "antilope": "", "lat": 45.758007305135, "lon": 4.881591251995 },
+      { "id_all": 48290, "id_ret": 48291, "ordre": 19, "nom": "Verlaine - Tolstoï", "abrev": "TOLS", "antilope": "", "lat": 45.762328586741, "lon": 4.880762338728 },
+      { "id_all": 48292, "id_ret": 48293, "ordre": 20, "nom": "Hôtel de Ville - TNP", "abrev": "HDVT", "antilope": "", "lat": 45.765988978501, "lon": 4.88029899601 },
+      { "id_all": 48294, "id_ret": 48295, "ordre": 21, "nom": "Gratte-Ciel", "abrev": "GRAT", "antilope": "", "lat": 45.768876931748, "lon": 4.880262008437 },
+      { "id_all": 48296, "id_ret": 48297, "ordre": 22, "nom": "Geneviève de Gaulle", "abrev": "GDGA", "antilope": "", "lat": 45.772290721523, "lon": 4.879089362946 },
+      { "id_all": 48298, "id_ret": 48299, "ordre": 23, "nom": "Roger Planchon", "abrev": "PLAN", "antilope": "", "lat": 45.776451281422, "lon": 4.877052156935 },
+      { "id_all": 48285, "id_ret": 48286, "ordre": 24, "nom": "La Doua - Gaston Berger", "abrev": "LDGB", "antilope": "", "lat": 45.779825663984, "lon": 4.872027856429 }
     ]
   },
   {
