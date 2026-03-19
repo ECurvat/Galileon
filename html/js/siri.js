@@ -523,15 +523,24 @@ function createVehiculeMarker(v, map) {
 	=> Renvoie une chaîne de caractères avec le nom de l'arrêts et les prochains passages
 */
 function buildPopupContent(arret, passages) {
+	const id = `content-${arret.id}`;
+
 	return `
-		<strong>${arret.nom}</strong><br>
-		${passages.length === 0 ? "<i>Aucun passage</i>" : ""}
-		${passages.map(p => `
-			<div>
-				${p.ligne} V${p.voiture} → ${p.terminus.nom} :
-				${new Date(p.heure).toLocaleTimeString("fr-FR")}
+		<div style="min-width:250px; text-align: center">
+			<strong>${arret.nom}</strong>
+			<div id="header-${arret.id}" style="cursor:pointer;">Voir les horaires ⬇</div>
+
+			<div id="${id}" style="display:none; margin-top:5px; font-size:0.9em">
+				${passages.length === 0 
+					? "<i>Aucun passage</i>" 
+					: passages.map(p => `
+						<div>
+							${p.ligne} V${p.voiture} → ${p.terminus.nom} : ${new Date(p.heure).toLocaleTimeString("fr-FR")}
+						</div>
+					`).join("")
+				}
 			</div>
-		`).join("")}
+		</div>
 	`;
 }
 
@@ -703,6 +712,22 @@ function updateHoraires(horairesArrets) {
 		const content = buildPopupContent(arret, passages);
 
 		marker.setPopupContent(content);
+		marker.on('popupopen', (e) => {
+			const header = document.getElementById(`header-${arret.id}`);
+			const content = document.getElementById(`content-${arret.id}`);
+
+			if (!header || !content) return;
+
+			header.onclick = (event) => {
+				event.stopPropagation();
+
+				const isOpen = content.style.display === "block";
+				content.style.display = isOpen ? "none" : "block";
+				header.innerHTML = isOpen 
+					? `Voir les horaires ⬇` 
+					: `Cacher les horaires ⬆`;
+			};
+		});
 	});
 }
 
