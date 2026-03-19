@@ -803,7 +803,6 @@ function initMap() {
 	});
 
 	arrets.forEach(arret => {
-		console.log(arret.nom, arret.id, arret.desserte, arret.lat, arret.lon);
 		const marker = L.circleMarker([arret.lat, arret.lon], {
 			pane: 'paneArrets',
 			radius: 3,
