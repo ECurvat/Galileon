@@ -741,7 +741,22 @@ function updateHoraires(horairesArrets) {
 function initMap() {
 	if (mapInstance) return mapInstance;
 
-	const map = L.map('map').setView([45.75, 4.93], 12);
+	const saved = localStorage.getItem('itlMapView');
+
+	let defaultView = [45.75, 4.93];
+	let defaultZoom = 12;
+
+	if (saved) {
+		try {
+			const { lat, lon, zoom } = JSON.parse(saved);
+			defaultView = [lat, lon];
+			defaultZoom = zoom;
+		} catch (e) {
+			console.warn("Erreur lecture mapView");
+		}
+	}
+
+	const map = L.map('map').setView(defaultView, defaultZoom);
 
 	// Pane pour l'arrière plan
 	map.createPane('paneTraces');
@@ -754,6 +769,17 @@ function initMap() {
 	L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
 		attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM contributors</a>'
 	}).addTo(map);
+
+	map.on('moveend zoomend', () => {
+		const center = map.getCenter();
+		const zoom = map.getZoom();
+
+		localStorage.setItem('itlMapView', JSON.stringify({
+			lat: center.lat,
+			lon: center.lng,
+			zoom: zoom
+		}));
+	});
 
 	// Tracés par ligne (créés UNE FOIS)
 	traces.features.forEach(feature => {
