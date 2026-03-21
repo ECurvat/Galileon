@@ -503,12 +503,43 @@ function createVehiculeMarker(v, map) {
 	})
 	.join("<br>");
 
+	const spoilerId = `vehicule-${carrosserie}-${voiture}`;
+
+	const popupContent = `
+		<div style="min-width:250px;">
+			<b>→ ${terminus}</b> ${(timingBeau ?? "")}
+			<br>
+
+			<div id="header-${spoilerId}" style="cursor:pointer; margin-top:5px;">
+				Voir les passages ⬇
+			</div>
+
+			<div id="content-${spoilerId}" style="display:none; margin-top:5px;">
+				${passagesHTML}
+			</div>
+		</div>
+	`;
+
 	const marker = L.marker([v.position.latitude, v.position.longitude], { icon })
-	.bindPopup(`
-		<b>→ ${terminus}</b> ${(timingBeau ?? "")}
-		<br>
-		${passagesHTML}
-	`);
+		.bindPopup(popupContent);
+
+	marker.on('popupopen', () => {
+		const header = document.getElementById(`header-${spoilerId}`);
+		const content = document.getElementById(`content-${spoilerId}`);
+
+		if (!header || !content) return;
+
+		header.onclick = (event) => {
+			event.stopPropagation();
+
+			const isOpen = content.style.display === "block";
+			content.style.display = isOpen ? "none" : "block";
+
+			header.innerHTML = isOpen
+				? "Voir les passages ⬇"
+				: "Cacher les passages ⬆";
+		};
+	});
 
 	marker.options.voitureData = { voiture: v.voiture, carrosserie: v.carrosserie, timing: timingBeau ?? "" };
 
@@ -522,7 +553,7 @@ function createVehiculeMarker(v, map) {
 	Appelé à chaque rafraîchissement des données
 	=> Renvoie une chaîne de caractères avec le nom de l'arrêts et les prochains passages
 */
-function buildPopupContent(arret, passages) {
+function buildStopPopupContent(arret, passages) {
 	const id = `content-${arret.id}`;
 
 	return `
@@ -709,7 +740,7 @@ function updateHoraires(horairesArrets) {
 
 		const passages = (horairesArrets.get(arret.id) || []);
 
-		const content = buildPopupContent(arret, passages);
+		const content = buildStopPopupContent(arret, passages);
 
 		marker.setPopupContent(content);
 		marker.on('popupopen', (e) => {
