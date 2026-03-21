@@ -7,6 +7,20 @@ const arretsReleve = [/* T1 */ 46160,
 					/* T6 */ 47313,	47314,
 					/* T7 */ 47685
 ];
+let isPageVisible = true;
+
+function setupVisibilityHandling() {
+	document.addEventListener("visibilitychange", () => {
+		isPageVisible = !document.hidden;
+
+		if (!isPageVisible) {
+			console.log("⏸️ Onglet inactif → pause refresh");
+		} else {
+			console.log("▶️ Onglet actif → reprise refresh");
+		}
+	});
+}
+
 const visite = {
 	referrer: document.referrer || null,
 
@@ -358,23 +372,9 @@ const RefreshControl = L.Control.extend({
 		button.style.display = 'flex';
 		button.style.alignItems = 'center';
 		button.style.justifyContent = 'center';
-		button.innerHTML = refreshSVG;
-		button.addEventListener('click', async (e) => {
-			e.preventDefault();
-
-			if (refreshDisabled) return;
-
-			disableRefreshButton(button);
-
-			try {
-				await reloadVehicules(); // ta fonction globale
-			} catch (err) {
-				console.error('Erreur refresh', err);
-			}
-
-			startRefreshCooldown(button, 30000);
-		});
-
+		button.style.pointerEvents = 'none';
+		button.style.cursor = 'default';   
+		button.innerHTML = nextRefreshIn;
 
 		// Empêche la carte de bouger
 		L.DomEvent.disableClickPropagation(container);
@@ -894,9 +894,9 @@ function updateVehicules(listeVehicules) {
 
 	============================================================================================== */
 
-let refreshDisabled = false;
-let refreshTimeout = null;
-let refreshCountdownInterval = null;
+let nextRefreshIn = 0; // secondes
+const REFRESH_INTERVAL = 35; // secondes
+let countdownInterval = null;
 
 /*
 	- Initialise la carte et effectue la première récupération des données et mise en place de la carte
@@ -913,21 +913,66 @@ async function init() {
 	let objetsVehicules = traiterSiri(listeVehicules, listeHoraires);
 	let horairesArrets = traiterHoraires(listeHoraires);
 	sendDb(listeVehicules);
+
 	const map = initMap();
 	refreshData(objetsVehicules, horairesArrets);
-	setTimeout(() => {
-		const button = document.getElementById('refresh-button');
-		if (!button) return;
 
-		disableRefreshButton(button);
-		startRefreshCooldown(button, 30000); // 30s
-	}, 0);
 	const listeIncidents = await fetchSiriSE();
+
+	autoRefreshLoop();
+}
+
+async function autoRefreshLoop() {
+	while (true) {
+		try {
+			if (!isPageVisible) {
+				await waitUntilVisible();
+			}
+
+			nextRefreshIn = REFRESH_INTERVAL;
+			startCountdown();
+
+			await reloadVehicules();
+
+			await wait(REFRESH_INTERVAL * 1000);
+
+		} catch (err) {
+			console.error("Erreur boucle auto-refresh", err);
+		}
+	}
+}
+
+function waitUntilVisible() {
+	return new Promise(resolve => {
+		const check = () => {
+			if (!document.hidden) {
+				document.removeEventListener("visibilitychange", check);
+				resolve();
+			}
+		};
+		document.addEventListener("visibilitychange", check);
+	});
+}
+
+function wait(ms) {
+	return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function startCountdown() {
+	if (countdownInterval) clearInterval(countdownInterval);
+
+	countdownInterval = setInterval(() => {
+		if (nextRefreshIn > 0) {
+			nextRefreshIn--;
+			const btnRefresh = document.getElementById("refresh-button");
+			btnRefresh.innerHTML = nextRefreshIn;
+		}
+	}, 1000);
 }
 
 /*
-	- Lancer le rafraichissement des véhicules et de la légende
-
+	- Lancer le rafraichissement de toutes les données API
+	Appelé par reloadVehicules()
 	=> Ne renvoie rien
 */
 function refreshData(listeVehicules, horairesArrets) {
@@ -954,69 +999,7 @@ async function reloadVehicules() {
 	}
 }
 
-/*
-	- Désactiver le bouton de rafraichissement selon le délai
-	Appelé par l'initialisation de la page et l'appui sur le bouton
-	=> Ne renvoie rien
-*/
-function disableRefreshButton(button) {
-	refreshDisabled = true;
-	button.classList.add('refresh-disabled');
-	button.style.pointerEvents = 'none';
-	button.style.opacity = '0.5';
-}
 
-/*
-	- Activer le bouton de rafraichissement selon le délai écoulé
-	Appelé par startRefreshCooldown après la fin du délai
-	=> Ne renvoie rien
-*/
-function enableRefreshButton(button) {
-	if (refreshTimeout) {
-		clearTimeout(refreshTimeout);
-		refreshTimeout = null;
-	}
-	if (refreshCountdownInterval) {
-		clearInterval(refreshCountdownInterval);
-		refreshCountdownInterval = null;
-	}
-
-	refreshDisabled = false;
-	button.classList.remove('refresh-disabled');
-	button.style.pointerEvents = 'auto';
-	button.style.opacity = '1';
-	button.title = 'Rafraîchir les données';
-	button.innerHTML = refreshSVG;
-}
-
-/*
-	- Lance le cooldown du bouton de rechargement des données
-	Appelé par l'appui sur le bouton
-	=> Ne renvoie rien
-*/
-function startRefreshCooldown(button, delay) {
-	if (refreshTimeout) clearTimeout(refreshTimeout);
-	if (refreshCountdownInterval) clearInterval(refreshCountdownInterval);
-
-	const cooldownEndAt = Date.now() + delay;
-
-	const updateCooldownLabel = () => {
-		const remainingMs = cooldownEndAt - Date.now();
-		const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
-		button.textContent = `${remainingSeconds}`;
-		button.title = `Disponible dans ${remainingSeconds}s`;
-	};
-
-	updateCooldownLabel();
-
-	refreshCountdownInterval = setInterval(() => {
-		updateCooldownLabel();
-	}, 200);
-
-	refreshTimeout = setTimeout(() => {
-		enableRefreshButton(button);
-	}, delay);
-}
 
 /*
 	- Récupère les arrêts de tram du réseau TCL
