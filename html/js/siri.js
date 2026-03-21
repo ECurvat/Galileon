@@ -41,15 +41,19 @@ const visite = {
 	connection_type: navigator.connection?.effectiveType ?? null
 };
 
-function sendDb(listeVehicules) {
-	const payload = {
-		visite,
-		listeVehicules
-	}
-	fetch('/db/send', {
+function sendVisite() {
+	fetch('/db/send-visite', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(payload)
+		body: JSON.stringify(visite)
+	});
+}
+
+function sendVehicules(listeVehicules) {
+	fetch('/db/send-vehicules', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(listeVehicules)
 	});
 }
 
@@ -912,7 +916,8 @@ async function init() {
 
 	let objetsVehicules = traiterSiri(listeVehicules, listeHoraires);
 	let horairesArrets = traiterHoraires(listeHoraires);
-	sendDb(listeVehicules);
+	sendVisite();
+	sendVehicules(listeVehicules);
 
 	const map = initMap();
 	refreshData(objetsVehicules, horairesArrets);
@@ -990,6 +995,7 @@ async function reloadVehicules() {
 	try {
 		const listeHoraires = await fetchSiriET();
 		const listeVehicules = await fetchSiri();
+		sendVehicules(listeVehicules);
 		const horairesArrets = traiterHoraires(listeHoraires);
 		const objetsVehicules = traiterSiri(listeVehicules, listeHoraires);
 

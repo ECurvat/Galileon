@@ -213,13 +213,10 @@ app.get("/api/vehicules", async (req, res) => {
   }
 });
 
-app.post("/db/send", (req, res) => {
-	const listeVehicules = req.body.listeVehicules;
-	const visite = req.body.visite;
+app.post("/db/send-vehicules", (req, res) => {
+	const listeVehicules = req.body;
 	const dateNow = new Date().toISOString();
-	// console.log(listeVehicules);
-	// console.log(visite);
-	if (listeVehicules && visite) {
+	if (listeVehicules) {
 		try {
 			const db = new Database("base.db");
 			db.pragma("journal_mode = WAL");
@@ -242,6 +239,29 @@ app.post("/db/send", (req, res) => {
 				console.log(dateNow, ligne, carrosserie, voiture, prochainArret, distanceArret, terminus, latitude, longitude, avanceRetard, sens);
 				insertInfo.run([dateNow, ligne, carrosserie, voiture, prochainArret, distanceArret, terminus, latitude, longitude, avanceRetard, sens]);
 			});
+
+			res.json({
+				success: true,
+				data: []
+			})
+		} catch (err) {
+			console.error(err);
+			res.status(500).send("Erreur serveur");
+		}	
+	} else {
+		console.log("Aucun véhicule à mettre en BD");
+	}
+});
+
+app.post("/db/send-visite", (req, res) => {
+	const visite = req.body;
+	const dateNow = new Date().toISOString();
+	if (visite) {
+		try {
+			const db = new Database("base.db");
+			db.pragma("journal_mode = WAL");
+			db.pragma("synchronous = NORMAL");
+			db.pragma("busy_timeout = 3000");
 
 			// Partie 2 : envoyer la visite
 			db.prepare(`
@@ -283,10 +303,8 @@ app.post("/db/send", (req, res) => {
 			res.status(500).send("Erreur serveur");
 		}	
 	} else {
-		console.log("Aucun véhicule à mettre en BD");
+		console.log("Pas de visite à mettre en BD");
 	}
-
-
 });
 
 function parseTiming(dureeStr) {
