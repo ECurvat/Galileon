@@ -1,121 +1,132 @@
-  let lastOrientation = window.innerWidth > window.innerHeight ? "landscape" : "portrait";
+let lastOrientation = window.innerWidth > window.innerHeight ? "landscape" : "portrait";
 
-  function checkOrientation() {
-    const currentOrientation = window.innerWidth > window.innerHeight ? "landscape" : "portrait";
+function checkOrientation() {
+const currentOrientation = window.innerWidth > window.innerHeight ? "landscape" : "portrait";
 
-    // Blocage en portrait
-    // if (currentOrientation === "portrait") {
-    //   document.getElementById("orientation-lock").style.display = "flex";
-    // } else {
-    //   document.getElementById("orientation-lock").style.display = "none";
-    // }
+// Blocage en portrait
+// if (currentOrientation === "portrait") {
+//   document.getElementById("orientation-lock").style.display = "flex";
+// } else {
+//   document.getElementById("orientation-lock").style.display = "none";
+// }
 
-    // Reload uniquement si changement d’orientation
-    if (currentOrientation !== lastOrientation) {
-      lastOrientation = currentOrientation;
-      location.reload();
-    }
-  }
+// Reload uniquement si changement d’orientation
+if (currentOrientation !== lastOrientation) {
+	lastOrientation = currentOrientation;
+	location.reload();
+}
+}
 
-  // Vérification initiale
-  checkOrientation();
+// Vérification initiale
+checkOrientation();
 
-  // Vérification à chaque resize
-  window.addEventListener("resize", checkOrientation);
+// Vérification à chaque resize
+window.addEventListener("resize", checkOrientation);
+
+
+let isPageVisible = true;
+
+function setupVisibilityHandling() {
+	document.addEventListener("visibilitychange", () => {
+		isPageVisible = !document.hidden;
+
+		if (!isPageVisible) {
+			console.log("⏸️ Onglet inactif → pause refresh");
+		} else {
+			console.log("▶️ Onglet actif → reprise refresh");
+		}
+	});
+}
+
+const visite = {
+	referrer: document.referrer || null,
+
+	session_id: null,
+
+	language: navigator.language,
+	timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+
+	user_agent: navigator.userAgent,
+	platform: navigator.platform,
+
+	screen_width: screen.width,
+	screen_height: screen.height,
+	device_pixel_ratio: window.devicePixelRatio,
+
+	is_touch: 'ontouchstart' in window ? 1 : 0,
+
+	connection_type: navigator.connection?.effectiveType ?? null
+};
 
 async function fetchLignes() {
-  const response = await fetch('data/lignes.json');
-  return await response.json();
+	const response = await fetch('data/lignes.json');
+	return await response.json();
 }
 
 function getParam(name) {
-  const url = new URL(window.location.href);
-  return url.searchParams.get(name);
-}
-
-function afficherErreur(message) {
-	const ligneNom = getParam('ligne');
-	const main = document.getElementsByClassName("main")[0];
-	const div = document.createElement("div");
-	div.className = "erreur";
-	div.style.backgroundColor = lineColor(ligneNom) + "80"; // ajouter 80 en hexadécimal pour dire 50% de transparence
-	div.style.borderColor = lineColor(ligneNom);
-	div.textContent = "— " + message + " —";
-	main.appendChild(div);
+	const url = new URL(window.location.href);
+	return url.searchParams.get(name);
 }
 
 function buildTable(ligne) {
-   const table = document.createElement("table");
+	const main = document.getElementsByClassName("main")[0];
+ 	const table = document.createElement("table");
+	const ordreMin = 1;
+	const ordreMax = Math.max(...ligne.stations.map(s => s.ordre));
 
-   // Premier emplacement :
-   // Emplacement1 : une seule cellule avec colspan
-	const trEmplacement1 = table.insertRow();
-	trEmplacement1.className = "emplacement emplacement1";
-	const td1 = trEmplacement1.insertCell();
-	td1.colSpan = ligne.stations.length;
+	// construction voie retour
+	trVoieRetour = table.insertRow();
+   	trVoieRetour.className = "voie aller";
+	ligne.stations.forEach(s => {
+		if (s.ordre == ordreMin) { // premiere station aller
+			const tdArret = trVoieRetour.insertCell();
+			tdArret.className = `${s.id_ret} arret`;
+		} else {
+			const tdInter = trVoieRetour.insertCell();
+			tdInter.className = "inter";
+			tdInter.dataset.stop = s.id_ret;
+			const tdArret = trVoieRetour.insertCell();
+			tdArret.className = `${s.id_ret} arret`;
+		}
+	})
 
-	const container1 = document.createElement("div");
-	container1.className = "train-container emplacement1";
-	td1.appendChild(container1);
+	// construction abrev
+	trAbrev = table.insertRow();
+	trAbrev.className = "abrev";
+	ligne.stations.forEach(s => {
+		if (s.ordre == ordreMin) {
+			const tdArret = trAbrev.insertCell();
+			tdArret.className = `${s.id_all} arret`;
+			tdArret.innerHTML = s.abrev;
+		} else {
+			const tdInter = trAbrev.insertCell();
+			tdInter.className = `inter`;
+			const tdArret = trAbrev.insertCell();
+			tdArret.className = `${s.abrev} arret`;
+			tdArret.innerHTML = s.abrev;
+		}
+	})
 
+	// construction voie aller
+	trVoieAller = table.insertRow();
+   	trVoieAller.className = "voie retour";
+	ligne.stations.forEach(s => {
+		if (s.ordre == ordreMax) {
+			const tdArret = trVoieAller.insertCell();
+			tdArret.className = `${s.id_all} arret`;
+		} else {
+			const tdArret = trVoieAller.insertCell();
+			tdArret.className = `${s.id_all} arret`;
+			const tdInter = trVoieAller.insertCell();
+			tdInter.className = "inter";
+			tdInter.dataset.stop = s.id_all;
+		}
+	})
 
-   // Voie 1 :
-   trVoie1 = table.insertRow();
-   trVoie1.className = "voie voie1";
-
-   for(let i=0; i<ligne.stations.length; i++) {
-	const td = trVoie1.insertCell();
-	td.textContent = "-";
-   }
-
-   // Premier spacer :
-   trSpacer1 = table.insertRow();
-   trSpacer1.className = "spacer spacer1";
-
-   for(let i=0; i<ligne.stations.length; i++) {
-	const td = trSpacer1.insertCell();
-   }
-
-   // Noms des stations : 
-   const trAbrev = table.insertRow();
-   trAbrev.className = "abrev";
-
-   for(let i=0; i<ligne.stations.length; i++) {
-	const td = trAbrev.insertCell();
-	td.textContent = ligne.stations[i].abrev;
-   }
-
-   // Deuxième spacer :
-   trSpacer2 = table.insertRow();
-   trSpacer2.className = "spacer spacer2";
-
-   for(let i=0; i<ligne.stations.length; i++) {
-	const td = trSpacer2.insertCell();
-   }
-
-   // Voie 2 :
-   trVoie2 = table.insertRow();
-   trVoie2.className = "voie voie2";
-
-   for(let i=0; i<ligne.stations.length; i++) {
-	const td = trVoie2.insertCell();
-	td.textContent = "-";
-   }
-
-   // Deuxième emplacement :
-   // Emplacement2 : une seule cellule avec colspan
-	const trEmplacement2 = table.insertRow();
-	trEmplacement2.className = "emplacement emplacement2";
-	const td2 = trEmplacement2.insertCell();
-	td2.colSpan = ligne.stations.length;
-
-	const container2 = document.createElement("div");
-	container2.className = "train-container emplacement2";
-	td2.appendChild(container2);
-
-
-   const main = document.getElementsByClassName("main")[0];
-   main.appendChild(table);
+	main.appendChild(table);
+	const decompte = document.createElement('span');
+	decompte.innerHTML = "Rafraîchissement des données dans 0s";
+	main.appendChild(decompte);
 }
 
 function buildMenu(ligneNom) {
@@ -138,469 +149,412 @@ function buildMenu(ligneNom) {
 	});
 }
 
-async function fetchVehiculesForLigne(ligne) {
-  try {
-    const response = await fetch(`/api/vehicules?ligne=${ligne}`);
-    if (!response.ok) throw new Error(`Erreur HTTP ${response.status}`);
-    const data = await response.json();
-	if (!data.success) {
-		afficherErreur(data.message);
-	} else {
-		return (data.data.Vehicules || []).map(v => {
-		const coord = convertWebMercatorToWGS84(v.X, v.Y);
-		let arretCorrige = v.ProchainArret;
-		if (v.ProchainArret === "Perrache.") {
-			arretCorrige = "Perrache";
-		} else if (v.ProchainArret === "Grange  Blanche") {
-			arretCorrige = "Grange Blanche";
-		} else if (v.ProchainArret === "Porte des  Alpes") {
-			arretCorrige = "Porte des Alpes";
-		} else if ((v.ProchainArret === "Jet d'Eau -  M. France") || (v.prochainArret === "Jet d'Eau - M. France")) {
-			arretCorrige = "Jet d'Eau - M. France";
-		} else if ((v.ProchainArret === "Gare  Part-Dieu") || (v.prochainArret === "Gare Part  Dieu")) {
-			arretCorrige = "Gare Part-Dieu";
-		} else if (v.ProchainArret === "H. Region Montrochet.") {
-			arretCorrige = "H. Region Montrochet";
-		}
-		return {
-			ligne: v.Ligne,
-			sens: v.Sens,
-			destination: v.Destination,
-			prochainArret: arretCorrige,
-			carrosserie: v.NumeroCarrosserie,
-			x: coord.latitude,
-			y: coord.longitude,
-			cap: v.Cap
-		};
-		});
-	}
-
-  } catch (err) {
-    console.error("Erreur réseau ou parsing :", err);
-    return [];
-  }
-}
-
-
-function convertWebMercatorToWGS84(x, y) {
-	const R = 6378137.0;
-	const longitude = (x / R) * (180 / Math.PI);
-	const latitude = (2 * Math.atan(Math.exp(y / R)) - (Math.PI / 2)) * (180 / Math.PI);
-	return { latitude, longitude };
-}
-
-function placeTrains(ligne, trains) {
-	const table = document.querySelector("table");
-	if (!table || !ligne || !ligne.stations) return;
-
-	// Mapping Antilope => abréviation
-	const antilopeToAbrev = {};
-	ligne.stations.forEach(station => {
-		antilopeToAbrev[station.antilope] = station.abrev;
-	});
-
-	// Récupération des cellules de la ligne abréviée
-	const abrevCells = [...table.querySelectorAll("tr.abrev td")];
-	const stationAbrevs = abrevCells.map(cell => cell.textContent.trim());
-
-	// Nettoyage des conteneurs
-	const containers = table.querySelectorAll(".train-container");
-	containers.forEach(c => (c.innerHTML = ""));
-
-	// Cellule d'origine pour positionnement relatif
-	const cell0 = abrevCells[0];
-	if (!cell0) return;
-	const originLeft = cell0.getBoundingClientRect().left;
-
-	let infoTrains = [];
-	trains.forEach(train => {
-		const abrev = antilopeToAbrev[train.prochainArret];
-		if (!abrev) {
-			console.warn("pb abrev pour", train);
-			return;
-		}
-
-		const idx = stationAbrevs.indexOf(abrev);
-		if (idx === -1) {
-			console.warn("pb idx -1 pour", train);
-			return;
-		}
-
-		// Détermination des arrêts précédent/suivant en fonction du sens
-		let arretPrecedent, arretSuivant;
-		if (train.sens === "ALL" || train.sens === "1") {
-			arretPrecedent = ligne.stations.find(s => s.ordre === idx);
-			arretSuivant = ligne.stations.find(s => s.ordre === idx + 1);
-		} else {
-			arretPrecedent = ligne.stations.find(s => s.ordre === idx + 2);
-			arretSuivant = ligne.stations.find(s => s.ordre === idx + 1);
-		}
-
-		if (!arretPrecedent || !arretSuivant) return;
-
-		const idxPrecedent = stationAbrevs.indexOf(arretPrecedent.abrev);
-		const idxSuivant = stationAbrevs.indexOf(arretSuivant.abrev);
-		if (idxPrecedent === -1 || idxSuivant === -1) return;
-
-		const cellA = abrevCells[idxPrecedent];
-		const cellB = abrevCells[idxSuivant];
-		if (!cellA || !cellB) return;
-
-		// Récupération des positions visuelles
-		let rectA = cellA.getBoundingClientRect();
-		let rectB = cellB.getBoundingClientRect();
-
-		// Calcul du ratio de progression entre les deux stations
-		const ratio = getProgressRatio(
-		{ lat: arretPrecedent.lat, lon: arretPrecedent.lon },
-		{ lat: arretSuivant.lat, lon: arretSuivant.lon },
-		{ lat: train.x, lon: train.y }
-		);
-
-		// Position horizontale relative à la première cellule
-		const centerA = rectA.left + rectA.width / 2;
-		const centerB = rectB.left + rectB.width / 2;
-		const x = centerA + ratio * (centerB - centerA) - originLeft;
-
-
-		// Sélection du bon conteneur
-		const rowClass = train.sens === "ALL" || train.sens === "1" ? "emplacement1" : "emplacement2";
-		const container = table.querySelector(`.train-container.${rowClass}`);
-		if (!container) return;
-
-		// Création du point
-		const dot = document.createElement("span");
-		dot.className = "train-dot";
-
-		// Couleur selon ligne
-		dot.style.backgroundColor = lineColor(train.ligne);
-
-		// Direction
-		dot.textContent = train.carrosserie;
-
-		// Placement du point
-		dot.style.left = `${x}px`;
-		dot.style.top = "1px"; // ajustable selon ton design
-
-		container.appendChild(dot);
-		let infoTrain = {train, arretPrecedent, idxPrecedent, arretSuivant, idxSuivant};
-		infoTrains.push(infoTrain);
-	});
-	return infoTrains;
-}
-
-
-function colorActiveButton() {
-	const active = document.getElementsByClassName("active")[0];
-	active.style.backgroundColor = lineColor(active.textContent);
-}
-
 function lineColor(line) {
 	switch (line) {
-		case "T1": return "#0860f0"; break;
-		case "T2": return "#ee7945"; break;
-		case "T3": return "#a900ff"; break;
-		case "T4": return "#00b26c"; break;
-		case "T5": return "#5138d3"; break;
-		case "T6": return "#daec5c"; break;
-		case "T7": return "#d7a0ff"; break;
-		default: return "white";
+		case "T1": return "rgb(1, 89, 170)"; break;
+		case "T2": return "rgb(105, 167, 68)"; break;
+		case "T3": return "rgb(0, 176, 174)"; break;
+		case "T4": return "rgb(101, 45, 144)"; break;
+		case "T5": return "rgb(243, 111, 36)"; break;
+		case "T6": return "rgb(240, 146, 164)"; break;
+		case "T7": return "rgb(151, 42, 99)"; break;
+		case "RX": return "rgb(255, 0, 0)"; break;
+		default: return "black";
 	}
 }
 
-function parseCSV(csvText) {
-	const lignes = csvText.trim().split("\n");
-	const enTetes = lignes[0].split(",").map(t => t.trim());
-
-	return lignes.slice(1).map(ligne => {
-		const valeurs = ligne.split(",").map(val => val.trim().replace(/\r$/, ""));
-		return Object.fromEntries(enTetes.map((cle, i) => [cle, valeurs[i] ?? ""]));
-	});
-}
-
-function parseYYYYmmDD(str) {
-  const year = parseInt(str.slice(0, 4), 10);
-  const month = parseInt(str.slice(4, 6), 10) - 1; // JS: janvier = 0
-  const day = parseInt(str.slice(6, 8), 10);
-  return new Date(year, month, day);
-}
-
-function normalizeDate(date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-async function getPassages(ligne) {
+async function fetchSiri(ligneNom) {
 	try {
-		const response = await fetch("/api/passages");
+		const response = await fetch("/siri/vehicle-monitoring");
+
+		if (!response.ok) {
+			console.error(`Erreur API SIRI: ${response.status} ${response.statusText}`);
+			return [];
+		}
+
 		const data = await response.json();
+
 		if (!data.success) {
-			// Cas d'erreur (aucun résultat)
-			afficherErreur(data.message);
-		} else {
-			const passagesFiltres = data.data.values.filter(p => p.ligne === ligne);
-			const groupes = passagesFiltres.reduce((acc, passage) => {
-				// Extraire le numéro de voiture de la course théorique
-				const parts = passage.coursetheorique.split("_");
-				const numseq = parts[2];
-				const key = Number(numseq.substring(0, 3));
-
-				// Si le groupe n'existe pas encore, on le crée
-				if (!acc[key]) {
-					acc[key] = [];
-				}
-
-				// Ajouter le passage dans le bon groupe
-				acc[key].push(passage);
-
-				return acc;
-			}, {});
-
-			const now = new Date();
-
-			const prochainsPassages = Object.entries(groupes).reduce((acc, [key, passages]) => {
-				// Convertir et filtrer les passages futurs
-				const futurs = passages
-					.map(p => ({
-					...p,
-					date: new Date(p.heurepassage.replace(" ", "T"))
-					}))
-					.filter(p => p.date > now);
-
-				if (futurs.length > 0) {
-					// Trier par heure croissante
-					futurs.sort((a, b) => a.date - b.date);
-
-					// Le premier est le plus proche
-					acc[key] = futurs[0];
-				} else {
-					acc[key] = null; // ou tu peux simplement ne pas mettre la clé
-				}
-
-				return acc;
-			}, {});
-			// si le passage est dans plus de 15 min, on l'enlève de la liste car c'est sûrement une sortie de dépôt
-			for (const [key, passage] of Object.entries(prochainsPassages)) {
-				if (passage) {
-					const diffMinutes = (passage.date - now) / 1000 / 60;
-					if (diffMinutes > 15) {
-						console.warn("Passage supprimé car dans + de 15min : ", key, passage);
-						delete prochainsPassages[key];
-					}
-				} else {
-					// si passage est null, on peut aussi le retirer
-					delete prochainsPassages[key];
-				}
-			}
-			return prochainsPassages;
+			return [];
 		}
-	} catch (err) {
-		console.error("Erreur lors de la récupération des passages :", err);
+
+		// Traitement normal
+		let listeVehicules = data.data.Siri.ServiceDelivery.VehicleMonitoringDelivery[0].VehicleActivity;
+
+		if (listeVehicules && listeVehicules.length === 0) {
+			console.warn("Aucun véhicule retourné par SIRI (liste vide)");
+			return [];
+		}
+
+		// tronc commun
+		let filtre = [ligneNom];
+		switch (ligneNom) {
+			case "T1":
+				filtre.push("T2", "T4");
+				break;
+			case "T2":
+				filtre.push("T1", "T5");
+				break;
+			case "T3":
+				filtre.push("T7");
+				break;
+			case "T4":
+				filtre.push("T1");
+				break;
+			case "T5":
+				filtre.push("T2");
+				break;
+			case "T6":
+				break;
+			case "T7":
+				filtre.push("T3");
+				break;
+			default: return;
+		}
+
+		let filtreVehicules = listeVehicules
+			.filter(v => filtre.includes(v.MonitoredVehicleJourney.LineRef.value.split(":")[3]))
+			.map(v => v.MonitoredVehicleJourney);
+
+		if (filtreVehicules.length === 0) {
+			console.warn("Aucun véhicule correspondant au filtre retourné par SIRI");
+			return [];
+		}
+
+		// Tout est bon
+		return filtreVehicules;
+
+	} catch (error) {
+		console.error("Erreur lors de la récupération SIRI :", error);
+		return [];
 	}
 }
 
-function associerAntilopeGrandLyon(ligne, trains, passages) {
-	let liens = [];
-
-	// utilitaires
-	function trouverArretCorrespondant(idProchainArret, ligne) {
-		for (const l of ligne.stations) {
-			if (idProchainArret == l.id_all) return { arret: l, sens: "ALL" };
-			if (idProchainArret == l.id_ret) return { arret: l, sens: "RET" };
-		}
-		return { arret: null, sens: "" };
+function traiterSiri(listeVehicules) {
+	let objetsVehicules = [];
+	if (listeVehicules) {
+		listeVehicules.forEach(v => {
+			let ligne = v.FramedVehicleJourneyRef.DatedVehicleJourneyRef.split(":")[3].slice(4).substring(0,2);
+			let carrosserie = v.VehicleRef.value.split(":")[3];
+			let voiture = parseInt(v.FramedVehicleJourneyRef.DatedVehicleJourneyRef.split(":")[3].slice(-8).substring(0,3));
+			let position = {latitude: v.VehicleLocation.Latitude, longitude: v.VehicleLocation.Longitude};
+			let sens = v.DirectionRef.value === "outbound" ? "Aller" : "Retour";
+			let timing = parseTiming(v.Delay);
+			let prochainArret = v.MonitoredCall.StopPointRef.value.split(":")[3];
+			let terminus = v.DestinationRef.value.split(":")[3];
+			objetsVehicules.push({
+				ligne: ligne,
+				carrosserie: carrosserie,
+				voiture: voiture,
+				terminus: terminus,
+				sens: sens,
+				timing: timing,
+				prochainArret: prochainArret,
+				position: {
+					lat: position.latitude,
+					lon: position.longitude
+				}
+			})
+		});
 	}
+	return objetsVehicules;
+}
 
-	function associerPassagesAuxTrains(passages, trains, offset = 0) {
-		let passagesUtilises = new Set();
-		let trainsUtilises = new Set();
-		let nouveauxLiens = [];
+function parseTiming(dureeStr) {
+	if (!dureeStr) return 0;
+	const isNegative = dureeStr.startsWith("-");
+	const cleanStr = dureeStr.replace("-", "");
 
-		for (const [key, passage] of Object.entries(passages)) {
-			const { arret, sens } = trouverArretCorrespondant(passage.id, ligne);
-			if (!arret) continue;
+	// Regex pour capter les minutes et secondes
+	const regex = /PT(?:(\d+)M)?(?:(\d+)S)?/;
+	const match = cleanStr.match(regex);
 
-			let arretRecherche = arret;
-			let sensRecherche = sens;
+	if (!match) return 0;
 
-			if (offset !== 0) {
-				let nouvelOrdre =
-					sens === "ALL" ? arret.ordre - offset : arret.ordre + offset;
+	const minutes = match[1] ? parseInt(match[1], 10) : 0;
+	const secondes = match[2] ? parseInt(match[2], 10) : 0;
 
-				// cas normal
-				if (nouvelOrdre >= 1 && nouvelOrdre <= ligne.stations.length) {
-					arretRecherche = ligne.stations.find(l => l.ordre === nouvelOrdre);
-				} else {
-					// 🚦 bascule de sens si on sort des bornes
-					if (nouvelOrdre < 1) {
-						// On était en ALL, mais on sort avant le 1 → prendre ordre max en RET
-						sensRecherche = "RET";
-						arretRecherche = ligne.stations.find(l => l.ordre === ligne.stations.length);
-					} else if (nouvelOrdre > ligne.stations.length) {
-						// On était en RET, mais on sort après max → prendre ordre 1 en ALL
-						sensRecherche = "ALL";
-						arretRecherche = ligne.stations.find(l => l.ordre === 1);
-					} else {
-						arretRecherche = null;
-						console.log("pas bon key", key);
-					}
+	let total = minutes * 60 + secondes;
+
+	return isNegative ? -total : total;
+}
+
+// Afficher le bon ordre des rames quand plusieurs dans la même interstation
+function distance(a, b) {
+	const dx = a.lat - b.lat;
+	const dy = a.lon - b.lon;
+	return Math.sqrt(dx * dx + dy * dy);
+}
+
+function calculeProportionInterstation(train, ligne, sensOverride = null) {
+    const stations = ligne.stations;
+    const sens = sensOverride ?? train.sens;
+
+    const stationsTried = [...stations].sort((a, b) =>
+        sens === "Aller" ? a.ordre - b.ordre : b.ordre - a.ordre
+    );
+
+    const idKey = sens === "Aller" ? "id_all" : "id_ret";
+    const indexProchain = stationsTried.findIndex(
+        s => String(s[idKey]) === String(train.prochainArret)
+    );
+
+    const prochain = stationsTried[indexProchain];
+    const precedent = indexProchain > 0 ? stationsTried[indexProchain - 1] : null;
+
+    const distTotale = precedent ? distance(
+        { lat: precedent.lat, lon: precedent.lon },
+        { lat: prochain.lat, lon: prochain.lon }
+    ) : null;
+
+    const distRestante = distance(
+        { lat: train.position.lat, lon: train.position.lon },
+        { lat: prochain.lat, lon: prochain.lon }
+    );
+
+    const distDepuisPrecedent = precedent ? distance(
+        { lat: train.position.lat, lon: train.position.lon },
+        { lat: precedent.lat, lon: precedent.lon }
+    ) : null;
+
+    const proportion = distTotale > 0 ? 1 - (distRestante / distTotale) : 0.5;
+
+    return {
+        precedent,
+        prochain,
+        proportion: Math.max(0, Math.min(1, proportion))
+    };
+}
+
+function afficherTrains(trains, ligne) {
+    const overlay = document.querySelector(".overlay");
+    if (!overlay) return;
+
+    const groupes = {};
+    trains.forEach(train => {
+        const key = train.prochainArret;
+        if (!groupes[key]) groupes[key] = [];
+        groupes[key].push(train);
+    });
+
+    Object.entries(groupes).forEach(([stop, groupe]) => {
+        const celluleProchain = document.querySelector(`.inter[data-stop="${stop}"]`);
+        if (!celluleProchain) return;
+
+        const parentRect = overlay.getBoundingClientRect();
+
+        groupe.forEach((train, index) => {
+			const estTroncCommun = 
+				(ligne.nom === "T1" && train.ligne === "T4") || 
+				(ligne.nom === "T4" && train.ligne === "T1");
+
+			const sensCalcul = estTroncCommun
+				? (train.sens === "Aller" ? "Retour" : "Aller")
+				: null;
+
+			const { precedent, prochain, proportion } = calculeProportionInterstation(train, ligne, sensCalcul);
+
+			// Coordonnées pixel du prochain arrêt (cellule inter)
+			const rectProchain = celluleProchain.getBoundingClientRect();
+			const xProchain = rectProchain.left - parentRect.left + rectProchain.width / 2;
+			const yProchain = rectProchain.top  - parentRect.top  + rectProchain.height / 2;
+
+			let xFinal = xProchain;
+			let yFinal = yProchain;
+
+			if (prochain && precedent) {  // garde-fou : introuvable = placement par défaut
+				const idKey = sensCalcul
+					? (sensCalcul === "Aller" ? "id_all" : "id_ret")
+					: (train.sens === "Aller" ? "id_all" : "id_ret");
+				const cellulePrecedent = document.querySelector(`.inter[data-stop="${precedent[idKey]}"]`);
+
+				if (cellulePrecedent) {
+					const rectPrecedent = cellulePrecedent.getBoundingClientRect();
+					const xPrecedent = rectPrecedent.left - parentRect.left + rectPrecedent.width / 2;
+					const yPrecedent = rectPrecedent.top  - parentRect.top  + rectPrecedent.height / 2;
+
+					xFinal = xPrecedent + (xProchain - xPrecedent) * proportion;
+					yFinal = yPrecedent + (yProchain - yPrecedent) * proportion;
 				}
 			}
 
-			if (!arretRecherche) continue;
+            // Offset pour groupes de trains dans la même interstation
+            const gap = 18;
+            const totalWidth = (groupe.length - 1) * gap;
+            const offset = index * gap - totalWidth / 2;
 
-			const idx = trains.findIndex(
-				t => t.train.sens === sensRecherche && t.arretSuivant === arretRecherche
-			);
-
-			if (idx !== -1) {
-				const t = trains[idx];
-				console.log(
-					`Correspondance trouvée (offset ${offset}, sens ${sensRecherche}) pour voiture ${key}`,
-					t
-				);
-
-				nouveauxLiens.push({
-					carrosserie: t.train.carrosserie,
-					voiture: key,
-					estDeduite: false
-				});
-
-				passagesUtilises.add(key);
-				trainsUtilises.add(idx);
-			}
-		}
-
-		// restants
-		const passagesRestants = Object.fromEntries(
-			Object.entries(passages).filter(([key]) => !passagesUtilises.has(key))
-		);
-		const trainsRestants = trains.filter((_, idx) => !trainsUtilises.has(idx));
-
-		return { nouveauxLiens, passagesRestants, trainsRestants };
-	}
-
-	function getOrderedTrains() {
-		const allStations = ligne.stations;
-		const ordreMax = Math.max(...allStations.map(s => s.ordre));
-
-		const trainsAll = trains
-			.filter(i => i.train.sens === "ALL")
-			.map(i => ({
-				...i,
-				ordre: allStations.find(s => s.antilope === i.train.prochainArret)?.ordre || ordreMax + 1
-			}))
-			.sort((a, b) => b.ordre - a.ordre); // Descendant pour ALL
-
-		const trainsRet = trains
-			.filter(i => i.train.sens === "RET")
-			.map(i => ({
-				...i,
-				ordre: allStations.find(s => s.antilope === i.train.prochainArret)?.ordre || -1
-			}))
-			.sort((a, b) => a.ordre - b.ordre); // Croissant pour RET
-
-		return[...trainsRet, ...trainsAll];
-	}
-
-
-	// === Première passe (offset 0) ===
-	let { nouveauxLiens, passagesRestants, trainsRestants } =
-		associerPassagesAuxTrains(passages, trains, 0);
-	liens.push(...nouveauxLiens);
-
-	// stop si tout est trouvé
-	if (Object.keys(passagesRestants).length === 0) return liens;
-
-	// === Deuxième passe (offset 1) ===
-	({ nouveauxLiens, passagesRestants, trainsRestants } =
-		associerPassagesAuxTrains(passagesRestants, trainsRestants, 1));
-	liens.push(...nouveauxLiens);
-
-	if (Object.keys(passagesRestants).length === 0) return liens;
-
-	// === Troisième passe (offset 2) ===
-	({ nouveauxLiens, passagesRestants, trainsRestants } =
-		associerPassagesAuxTrains(passagesRestants, trainsRestants, 2));
-	liens.push(...nouveauxLiens);
-
-	console.log("Restants : ");
-	console.log(passagesRestants);
-	console.log(trainsRestants);
-	// on prend un numéro de carosserie non attribué, on regarde si dans liens il y a une voiture attribuée au train précédent et au train suivant et du coup on lui met le numéro de voiture non attribué qui se trouve entre ceux des trains l'encadrant.
-	// on cherche les trains dans leur ordre réel
-	const trainsOrdonnes = getOrderedTrains();
-	// trainsRestants.forEach(t => {
-	// 	console.log("appel fonction avec train", t.train.carrosserie);
-	// 	// recherche index du train dans la liste ordonnée
-	// 	let trainO = trainsOrdonnes.find(tO => tO.train.carrosserie === t.train.carrosserie);
-	// 	let index = trainsOrdonnes.indexOf(trainO);
-	// 	console.log(index);
-	// 	// recherche train avant et après
-	// 	let indexTrainPrecedent;
-	// 	let indexTrainSuivant;
-	// 	if (index === 0) {
-	// 		indexTrainPrecedent = index + 1;
-	// 		indexTrainSuivant = trainsOrdonnes.length - 1;
-	// 		console.log("indice 0 : ", indexTrainPrecedent, index, indexTrainSuivant);
-	// 		console.log("indice 0 : ", trainsOrdonnes.indexOf(indexTrainPrecedent), t.train.carrosserie, trainsOrdonnes.indexOf(indexTrainSuivant));
-	// 	} else if (index === trainsOrdonnes.length - 1) {
-	// 		indexTrainPrecedent = 0;
-	// 		indexTrainSuivant = index - 1;
-	// 		console.log("indice max : ", indexTrainPrecedent, index, indexTrainSuivant);
-	// 	}
-
-	// })
-
-	return liens;
-}
-
-
-
-function addVoituresToDots(liens, infoTrains) {
-	if (!Array.isArray(liens)) {
-		console.warn("Paramètre 'lien' invalide ou non défini");
-		return;
-	}
-
-	const dots = Array.from(document.getElementsByClassName("train-dot"));
-	if (!dots.length) {
-		console.warn("Aucun dot trouvé");
-		return;
-	}
-
-	dots.forEach(dot => {
-		const lien = liens.find(l => l.carrosserie === parseInt(dot.textContent));
-		const sens = infoTrains.find(i => i.train.carrosserie === parseInt(dot.textContent)).train.sens;
-		if (lien && sens) {
-			const voiture = lien.voiture === undefined ? "?" : parseInt(lien.voiture);
-			dot.textContent = '';
-			let ita = lien.estDeduit ? "ita" : "";
-			if (sens === "RET") {
-				// on met le tableau avec la flèche vers la gauche
-				dot.innerHTML = `<table><tbody><tr><td rowspan="2">◀</td><td>${lien.carrosserie}</td></tr><tr><td class="${ita}">V${voiture}</td></tr></tbody></table>`;
+            // Création pastille
+            const pastille = document.createElement("div");
+            pastille.className = "train";
+			
+			// inverser sens T1 sur visu T4 et T4 sur visu T1 (tronc commun) pour le triangle
+			if ((ligne.nom == "T1" && train.ligne == "T4") || (ligne.nom == "T4" && train.ligne == "T1")) {
+				pastille.classList.add(train.sens === "Aller" ? "retour" : "aller");
 			} else {
-				dot.innerHTML = `<table><tbody><tr><td>${lien.carrosserie}</td><td rowspan="2">▶</td></tr><tr><td class="${ita}">V${voiture}</td></tr></tbody></table>`;
+				pastille.classList.add(train.sens === "Aller" ? "aller" : "retour");
 			}
+
+            pastille.style.backgroundColor = lineColor(train.ligne);
+
+			// Tooltip destination/avance retard
+			const tooltip = document.getElementById("tooltip");
+
+			pastille.style.pointerEvents = "auto";
+			pastille.addEventListener("click", (e) => {
+				e.stopPropagation();
+
+				// recherche nom propre arrêt
+				let arret = "Inconnu";
+				lignes.forEach(l => {
+					l.stations.forEach(a => {
+						if (a.id_all == train.terminus || a.id_ret == train.terminus) {
+							arret = a.nom;
+						}
+					});
+				});
+				
+				let timingBeau;
+				if (train.timing != null) {
+					const min = Math.floor(Math.abs(train.timing) / 60);
+					const sec = Math.abs(train.timing) % 60;
+					const signe = train.timing < 0 ? "-" : "+";
+					timingBeau = min > 0
+					? `${signe}${min}m${('0' + sec).slice(-2)}s`
+					: `${signe}${sec}s`;
+				}
+
+				tooltip.innerHTML = `
+					<strong>${train.ligne} → ${arret}</strong> ${timingBeau}
+				`;
+
+				tooltip.style.left = `${xFinal}px`;
+				tooltip.style.top  = `${yFinal}px`;
+				tooltip.classList.remove("hidden");
+			});
+
+			// Fermer en cliquant ailleurs
+			document.addEventListener("click", () => {
+				tooltip.classList.add("hidden");
+			}, { once: false });
+
+            const cercle = document.createElement("div");
+            cercle.className = "cercle";
+            const carrosserie = document.createElement("div");
+            carrosserie.className = "carrosserie";
+            carrosserie.textContent = train.carrosserie;
+            const voiture = document.createElement("div");
+            voiture.className = "voiture";
+            voiture.textContent = train.voiture;
+            cercle.appendChild(carrosserie);
+            cercle.appendChild(voiture);
+            pastille.appendChild(cercle);
+
+            const triangle = document.createElement("div");
+            triangle.className = "triangle";
+            let triangleColor = "gray";
+            if (train.timing < -60) triangleColor = "red";
+            else if (train.timing > 120) triangleColor = "green";
+            triangle.style.setProperty("--triangle-color", triangleColor);
+            pastille.appendChild(triangle);
+
+            pastille.style.position = "absolute";
+            pastille.style.left = `${xFinal}px`;
+            pastille.style.top  = `${yFinal}px`;
+            pastille.style.setProperty("--offset-x", `${offset}px`);
+
+            overlay.appendChild(pastille);
+        });
+    });
+}
+
+async function refreshData() {
+	const ligneNom = getParam('ligne');
+	const ligne = lignes.find(l => l.nom === ligneNom);
+
+	// clear all previous data from frontend
+    const overlay = document.querySelector(".overlay");
+
+	// hide tooltip
+	const tooltip = document.getElementById("tooltip");
+	tooltip.classList.add("hidden");
+
+	overlay.innerHTML = "";
+	const listeVehicules = await fetchSiri(ligneNom);
+	sendVehicules(listeVehicules);
+	const trains = traiterSiri(listeVehicules);
+	afficherTrains(trains, ligne);
+}
+
+let nextRefreshIn = 0; // secondes
+const REFRESH_INTERVAL = 35; // secondes
+let countdownInterval = null;
+
+async function autoRefreshLoop() {
+	while (true) {
+		try {
+			if (!isPageVisible) {
+				await waitUntilVisible();
+			}
+
+			nextRefreshIn = REFRESH_INTERVAL;
+			startCountdown();
+
+			await refreshData();
+
+			await wait(REFRESH_INTERVAL * 1000);
+
+		} catch (err) {
+			console.error("Erreur boucle auto-refresh", err);
 		}
+	}
+}
+
+function waitUntilVisible() {
+	return new Promise(resolve => {
+		const check = () => {
+			if (!document.hidden) {
+				document.removeEventListener("visibilitychange", check);
+				resolve();
+			}
+		};
+		document.addEventListener("visibilitychange", check);
 	});
 }
 
-function buildListeVoitures(passages) {
-	const main = document.getElementsByClassName("main")[0];
-	const title = document.createElement("span");
-	title.textContent = "Voitures normalement présentes : ";
-	const ul = document.createElement("ul");
-	for (const [key, passage] of Object.entries(passages)) {
-		const li = document.createElement("li");
-		li.textContent = key;
-		ul.appendChild(li);
-	}
-	main.appendChild(title);
-	main.appendChild(ul);
+function wait(ms) {
+	return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function startCountdown() {
+	if (countdownInterval) clearInterval(countdownInterval);
+
+	countdownInterval = setInterval(() => {
+		if (nextRefreshIn > 0) {
+			nextRefreshIn--;
+			const decompte = document.getElementsByTagName('span')[0];
+			decompte.innerHTML = `Rafraîchissement des données dans ${nextRefreshIn}s`;
+		}
+	}, 1000);
+}
+
+function sendVisite() {
+	fetch('/db/send-visite', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(visite)
+	});
+}
+
+function sendVehicules(listeVehicules) {
+	fetch('/db/send-vehicules', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(listeVehicules)
+	});
 }
 
 async function init() {
-	const lignes = await fetchLignes();
+	lignes = await fetchLignes();
 	const ligneNom = getParam('ligne');
 	const ligne = lignes.find(l => l.nom === ligneNom);
 
@@ -610,47 +564,19 @@ async function init() {
 		return;
 	}
 
+	sendVisite();
+
 	buildTable(ligne);
 
 	buildMenu(ligneNom);
 
-	const trains = await fetchVehiculesForLigne(ligneNom);
-	const saved = localStorage.getItem("snapshot_T4");
-	// const trains = JSON.parse(saved);
-	
-	if (trains) {
-		const infoTrains = placeTrains(ligne, trains);
-		// récupérer les passages les plus proches de chaque voiture de la ligne choisie
-		const passages = await getPassages(ligneNom);
+	await refreshData(ligne, ligneNom);
 
-		if (passages) {
-			buildListeVoitures(passages);
-			const liens = associerAntilopeGrandLyon(ligne, infoTrains, passages);
-			console.log(liens);
-			addVoituresToDots(liens, infoTrains);
-		}
-	}
+	const active = document.getElementsByClassName("active")[0];
+	active.style.backgroundColor = lineColor(ligneNom);
 
-	
-
-	colorActiveButton();
+	autoRefreshLoop();
 }
 
-function getProgressRatio(A, B, T) {
-	const dx = B.lon - A.lon;
-	const dy = B.lat - A.lat;
-	const lengthSquared = dx * dx + dy * dy;
-
-	if (lengthSquared === 0) return 0;
-
-	const tx = T.lon - A.lon;
-	const ty = T.lat - A.lat;
-
-	const dot = tx * dx + ty * dy;
-	const ratio = dot / lengthSquared;
-
-	// Clamp entre 0 et 1
-	return Math.max(0, Math.min(1, ratio));
-}
-
+let lignes;
 init();
